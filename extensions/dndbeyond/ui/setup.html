@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Character API connection help</title><link rel="stylesheet" href="picker.css"></head>
+<body class="setup"><main>
+  <header><p class="eyebrow">D&D Beyond · Chrome & Brave</p><h1>Connection help</h1>
+    <p>The API connects automatically and uses your remembered character.</p></header>
+  <section class="card">
+    <p id="connection" class="connection" role="status">Checking connection…</p>
+    <p id="error" role="alert"></p>
+    <button id="retry" type="button" hidden>Retry</button>
+    <p>Sign in to <a href="https://www.dndbeyond.com/characters" target="_blank" rel="noopener">D&D Beyond</a> in this browser, then choose your character in the extension.</p>
+    <p>If the Windows helper is unavailable, run <code>Install.cmd</code> from your permanent package folder. No developer tools or .NET installation are needed.</p>
+    <p>Use the extension in one browser profile at a time. Close the other browser, or disable the extension in that profile, before switching.</p>
+    <p>If sign-in expires, sign in again and refresh the characters. In Brave, allow D&D Beyond sign-in cookies if Shields blocks them.</p>
+    <p>If required site access was disabled manually, restore it in the browser's extension settings. There is no separate approval inside this extension.</p>
+  </section>
+  <footer><a href="picker.html">Character picker</a><span>API reference and examples are included in the package.</span></footer>
+</main><script type="module" src="setup.js"></script></body></html>

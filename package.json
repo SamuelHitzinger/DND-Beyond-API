@@ -1,0 +1,11 @@
+{
+  "name": "dnd-beyond-character-api",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24 <25" },
+  "scripts": {
+    "build:extension": "node tools/build-extension.js",
+    "test:bridge": "node tools/run-browser-tests.js"
+  },
+  "devDependencies": { "@playwright/test": "1.64.1" }
+}

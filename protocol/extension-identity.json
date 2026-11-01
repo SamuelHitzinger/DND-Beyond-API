@@ -1,0 +1,7 @@
+{
+  "schema": 1,
+  "manifest_key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwTo0Rm4Z6/i6Js+KFit4bPCEFMrYDCACBu2TfxWUgiUtrb4lw4MQsJecGfajOQT9NpAEc8a5vuoQpwlN9h41BI7dWY67iLZmD5PTgPvAkU8z0etEnjyVQ+Kyesb3gnz7sgqJfXWlEpHavp0QQiTXASgZyzKimGUIObNQ74uIUx7Qk1DJ8SGNAkDKyHPmQf+ewN+gwS4MfLU8axESa2v0kxONeesfnbgeZvOnaGELwT8TrqLR3j/k/m7J83TAmmuOIoj+fNiShKMAc29N9rZ6sdiAA/TAfcgn02gsdAfxUAnnD3j97MiveH7ZAJG68osxJFtQ5JDqR3L2QUZ3/lYyoQIDAQAB",
+  "extension_id": "abeakpcagojpphodembeeajfjgmcadnc",
+  "origin": "chrome-extension://abeakpcagojpphodembeeajfjgmcadnc/",
+  "native_host_name": "com.tabletopvr.character_bridge"
+}

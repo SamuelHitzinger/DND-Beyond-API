@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+*.exe binary
+*.zip binary
+licenses/runtime/dotnet-10.0.14/*.TXT -text whitespace=cr-at-eol,-blank-at-eof

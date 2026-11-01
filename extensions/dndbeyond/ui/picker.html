@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Character bridge</title><link rel="stylesheet" href="picker.css"></head>
+<body class="popup"><main>
+  <header><p class="eyebrow">D&D Beyond · Local API</p><h1>Your character</h1>
+    <p id="connection" class="connection" role="status">Connecting…</p></header>
+  <section class="card" aria-label="Character selection">
+    <label for="characters">Character</label>
+    <select id="characters" disabled><option value="">Loading characters…</option></select>
+    <p id="list-help" class="muted">Choose from your signed-in D&D Beyond account.</p>
+    <div class="actions"><button id="refresh" class="secondary" type="button">Refresh characters</button></div>
+  </section>
+  <p id="error" role="alert"></p>
+  <a id="setup" class="primary-link" href="setup.html" target="_blank" rel="noopener" hidden>Connection help</a>
+  <footer><a href="https://www.dndbeyond.com/characters" target="_blank" rel="noopener">Open D&D Beyond</a>
+</footer>
+</main><script type="module" src="picker.js"></script></body></html>

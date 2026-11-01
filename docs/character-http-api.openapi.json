@@ -1,0 +1,4635 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "D&D Beyond Character API",
+    "version": "1.0.0",
+    "description": "A browser-owned API on IPv4 loopback for the remembered character selected in the extension. Windows x64, desktop Chrome and Brave. Read the dynamic URL and local bearer from %LOCALAPPDATA%/TabletopVR/character-bridge/v2/http.json. D&D Beyond credentials never leave the browser. Any supported character suffix can use /v1/character or /v1/characters/{characterId}. Writes are never automatically retried. Unknown outcomes require a fresh read before deciding on another action."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:{port}",
+      "variables": {
+        "port": {
+          "default": "0",
+          "description": "Load the actual port from the per-user http.json discovery file."
+        }
+      }
+    }
+  ],
+  "security": [
+    {
+      "localBearer": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "localBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "Selection": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{0,15}$"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "CharacterList": {
+        "type": "object",
+        "properties": {
+          "characters": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "selected": {
+            "$ref": "#/components/schemas/Selection"
+          }
+        }
+      },
+      "CharacterDocument": {
+        "type": "object",
+        "description": "Unmodified D&D Beyond v5 character data, including inventory, classes, spells, actions, notes, counters and source definitions. DDB controls this upstream schema.",
+        "additionalProperties": true
+      },
+      "Vitals": {
+        "type": "object",
+        "required": [
+          "current",
+          "maximum",
+          "temporary"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "current": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "maximum": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "temporary": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1000000
+          }
+        }
+      },
+      "ExpectedVitals": {
+        "type": "object",
+        "required": [
+          "current",
+          "maximum",
+          "temporary"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "current": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "maximum": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "temporary": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
+          }
+        }
+      },
+      "Summary": {
+        "type": "object",
+        "required": [
+          "schema",
+          "character_id",
+          "url",
+          "name",
+          "vitals",
+          "observed_at_ms",
+          "freshness",
+          "capabilities"
+        ],
+        "properties": {
+          "schema": {
+            "const": 1
+          },
+          "character_id": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "name": {
+            "type": "string"
+          },
+          "vitals": {
+            "$ref": "#/components/schemas/Vitals"
+          },
+          "observed_at_ms": {
+            "type": "integer"
+          },
+          "freshness": {
+            "const": "fresh"
+          },
+          "capabilities": {
+            "type": "object",
+            "additionalProperties": {
+              "enum": [
+                "verified",
+                "unsupported"
+              ]
+            }
+          }
+        }
+      },
+      "MutationResult": {
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "properties": {
+          "state": {
+            "enum": [
+              "verified",
+              "acknowledged",
+              "rejected",
+              "conflict",
+              "unknown"
+            ]
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "characterId": {
+            "type": "string"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/Summary"
+          },
+          "response": {
+            "description": "Upstream status and JSON response; generic acknowledgement is not read-back verification.",
+            "type": "object"
+          },
+          "id": {
+            "type": [
+              "integer",
+              "string",
+              "null"
+            ]
+          },
+          "itemIds": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "verifiedFields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "RawRequest": {
+        "type": "object",
+        "required": [
+          "method",
+          "path"
+        ],
+        "properties": {
+          "method": {
+            "enum": [
+              "GET",
+              "HEAD",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE"
+            ]
+          },
+          "path": {
+            "type": "string",
+            "description": "Relative character-service path or HTTPS URL on character-service.dndbeyond.com or character-service-scds.dndbeyond.com only. Redirects and custom headers are not supported."
+          },
+          "body": {
+            "description": "JSON forwarded to DDB. Standard mutation objects default characterId to the route character; other/nested identifiers must refer to the intended character."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "responses": {
+      "Success1": {
+        "description": "Successful response. Mutation state must be inspected even with HTTP 200.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "Error400": {
+        "description": "Successful response. Mutation state must be inspected even with HTTP 200.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Error401": {
+        "description": "Missing or incorrect local bearer."
+      },
+      "Error403": {
+        "description": "Character is not the selected character."
+      },
+      "Error409": {
+        "description": "No character selected (selected alias only)."
+      },
+      "Error502": {
+        "description": "Browser/service read or authentication failure."
+      },
+      "Error503": {
+        "description": "Browser unavailable; possible write outcome is unknown. Never retry automatically."
+      },
+      "Success2": {
+        "description": "Successful response. Mutation state must be inspected even with HTTP 200.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "browser": {
+                  "const": "connected"
+                },
+                "selected": {
+                  "$ref": "#/components/schemas/Selection"
+                },
+                "characters": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "Success3": {
+        "description": "Successful response. Mutation state must be inspected even with HTTP 200.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/CharacterList"
+            }
+          }
+        }
+      },
+      "Success4": {
+        "description": "Successful response. Mutation state must be inspected even with HTTP 200.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "characters": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "details": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "details"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "Success5": {
+        "description": "Successful response. Mutation state must be inspected even with HTTP 200.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "character": {
+                  "$ref": "#/components/schemas/CharacterDocument"
+                }
+              },
+              "required": [
+                "character"
+              ],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "Success6": {
+        "description": "Successful response. Mutation state must be inspected even with HTTP 200.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "summary": {
+                  "$ref": "#/components/schemas/Summary"
+                }
+              },
+              "required": [
+                "summary"
+              ],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "Success7": {
+        "description": "Successful response. Mutation state must be inspected even with HTTP 200.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/MutationResult"
+            }
+          }
+        }
+      },
+      "Success8": {
+        "description": "Successful response. Mutation state must be inspected even with HTTP 200.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "inventory": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                },
+                "customItems": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "Success9": {
+        "description": "Successful response. Mutation state must be inspected even with HTTP 200.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "spellSlots": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                },
+                "pactMagic": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "Success10": {
+        "description": "Successful response. Mutation state must be inspected even with HTTP 200.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "currencies": {
+                  "type": "object",
+                  "properties": {
+                    "cp": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "sp": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "ep": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "gp": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "pp": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  }
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "Success11": {
+        "description": "Successful response. Mutation state must be inspected even with HTTP 200.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "inspiration": {}
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "Success12": {
+        "description": "Successful response. Mutation state must be inspected even with HTTP 200.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "currentXp": {}
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "Success13": {
+        "description": "Successful response. Mutation state must be inspected even with HTTP 200.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "deathSaves": {}
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "Success14": {
+        "description": "Successful response. Mutation state must be inspected even with HTTP 200.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "notes": {}
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "Success15": {
+        "description": "Successful response. Mutation state must be inspected even with HTTP 200.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "conditions": {}
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "Success16": {
+        "description": "Successful response. Mutation state must be inspected even with HTTP 200.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "customItems": {}
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "Success17": {
+        "description": "Successful response. Mutation state must be inspected even with HTTP 200.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "customActions": {}
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "Success18": {
+        "description": "Successful response. Mutation state must be inspected even with HTTP 200.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "actions": {}
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "Success19": {
+        "description": "Successful response. Mutation state must be inspected even with HTTP 200.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "spells": {}
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          }
+        }
+      }
+    },
+    "requestBodies": {
+      "post_hp_damage": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 1000000
+                },
+                "expected": {
+                  "$ref": "#/components/schemas/ExpectedVitals"
+                }
+              },
+              "required": [
+                "amount"
+              ],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "post_hp_temporary": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 1000000
+                },
+                "expected": {
+                  "$ref": "#/components/schemas/ExpectedVitals"
+                }
+              },
+              "required": [
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "post_inventory": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "entityId": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "entityTypeId": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "quantity": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "containerEntityId": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "containerEntityTypeId": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "entityId",
+                "entityTypeId"
+              ],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "put_inventory_itemId_quantity": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "quantity": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "quantity"
+              ],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "put_inventory_itemId_equipped": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "put_inventory_itemId_container": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "containerEntityId": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "containerEntityTypeId": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "containerEntityId",
+                "containerEntityTypeId"
+              ],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "put_spell_slots_level": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "used": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "used"
+              ],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "put_currency": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "cp": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "sp": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "ep": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "gp": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "pp": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [],
+              "additionalProperties": false,
+              "minProperties": 1
+            }
+          }
+        }
+      },
+      "put_inspiration": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "inspiration": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "inspiration"
+              ],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "put_xp": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "currentXp": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "currentXp"
+              ],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "put_death_saves": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "failCount": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 3
+                },
+                "successCount": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 3
+                }
+              },
+              "required": [
+                "failCount",
+                "successCount"
+              ],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "put_notes": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "allies": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "personalPossessions": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "otherHoldings": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "organizations": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "enemies": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "backstory": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "otherNotes": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [],
+              "additionalProperties": false,
+              "minProperties": 1
+            }
+          }
+        }
+      },
+      "post_custom_items": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "quantity": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "weight": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                "cost": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                "notes": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "post_custom_actions": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "actionType": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "put_limited_use": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": [
+                    "integer",
+                    "string"
+                  ]
+                },
+                "entityTypeId": {
+                  "type": [
+                    "integer",
+                    "string"
+                  ]
+                },
+                "uses": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "id",
+                "entityTypeId",
+                "uses"
+              ],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "put_prepared_spells": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "characterClassId": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "prepared": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "characterClassId",
+                "prepared"
+              ],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "put_conditions_conditionId": {
+        "required": false,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "level": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 6
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "put_custom_items_id": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "quantity": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "weight": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                "cost": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                "notes": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "put_custom_actions_id": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "actionType": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 3
+                }
+              },
+              "required": [],
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "post_rests_short": {
+        "required": false,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "resetMaxHpModifier": {
+                  "type": "boolean"
+                },
+                "classHitDiceUsed": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 20
+                  }
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "post_rests_long": {
+        "required": false,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "resetMaxHpModifier": {
+                  "type": "boolean"
+                },
+                "adjustConditionLevel": {
+                  "type": "boolean"
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          }
+        }
+      },
+      "post_rolls": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "kind"
+              ],
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "ability",
+                    "save",
+                    "skill",
+                    "attack",
+                    "damage",
+                    "initiative",
+                    "dice"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                },
+                "index": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "expression": {
+                  "type": "string"
+                },
+                "advantage": {
+                  "enum": [
+                    "auto",
+                    "normal",
+                    "advantage",
+                    "disadvantage"
+                  ],
+                  "default": "auto"
+                },
+                "critical": {
+                  "type": "boolean"
+                },
+                "bonus": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post_request": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/RawRequest"
+            }
+          }
+        }
+      }
+    },
+    "parameters": {
+      "characterId": {
+        "name": "characterId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,15}$"
+        }
+      },
+      "itemId": {
+        "name": "itemId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      "level": {
+        "name": "level",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9
+        }
+      },
+      "conditionId": {
+        "name": "conditionId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 15
+        }
+      },
+      "id": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      }
+    }
+  },
+  "paths": {
+    "/openapi.json": {
+      "get": {
+        "summary": "Read this OpenAPI specification",
+        "description": "",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success1"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/v1/status": {
+      "get": {
+        "summary": "Browser connection and remembered selection",
+        "description": "",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success2"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/v1/characters": {
+      "get": {
+        "summary": "Selected authorized character ID",
+        "description": "",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success3"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/v1/account/characters": {
+      "get": {
+        "summary": "Refresh the signed-in account character picker",
+        "description": "Active owned account characters. Does not authorize another character. A changed account or missing selected character clears the remembered selection. Requires DDB sign-in and required service host access.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success4"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/v1/character": {
+      "get": {
+        "summary": "Read fresh raw v5 character",
+        "description": " Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success5"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "operationId": "selected_get_character"
+      }
+    },
+    "/v1/characters/{characterId}": {
+      "get": {
+        "summary": "Read fresh raw v5 character",
+        "description": " Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success5"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_get_character"
+      }
+    },
+    "/v1/character/summary": {
+      "get": {
+        "summary": "Read fresh computed HP summary",
+        "description": "Reads v5 and SCDS. Inconsistent or unavailable HP becomes null and HP write capabilities unsupported. Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success6"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "operationId": "selected_get_summary"
+      }
+    },
+    "/v1/characters/{characterId}/summary": {
+      "get": {
+        "summary": "Read fresh computed HP summary",
+        "description": "Reads v5 and SCDS. Inconsistent or unavailable HP becomes null and HP write capabilities unsupported. Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success6"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_get_summary"
+      }
+    },
+    "/v1/character/hp/damage": {
+      "post": {
+        "summary": "Apply HP damage",
+        "description": "Fresh v5/SCDS pre-read. Optional expected vitals must match before dispatch. Damage absorbs temporary HP first; healing clamps at maximum. Temporary HP is an absolute replacement. Performs one PUT and fresh read-back; never retried. Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/post_hp_damage"
+        },
+        "operationId": "selected_post_hp_damage"
+      }
+    },
+    "/v1/characters/{characterId}/hp/damage": {
+      "post": {
+        "summary": "Apply HP damage",
+        "description": "Fresh v5/SCDS pre-read. Optional expected vitals must match before dispatch. Damage absorbs temporary HP first; healing clamps at maximum. Temporary HP is an absolute replacement. Performs one PUT and fresh read-back; never retried. Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/post_hp_damage"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_post_hp_damage"
+      }
+    },
+    "/v1/character/hp/heal": {
+      "post": {
+        "summary": "Apply HP heal",
+        "description": "Fresh v5/SCDS pre-read. Optional expected vitals must match before dispatch. Damage absorbs temporary HP first; healing clamps at maximum. Temporary HP is an absolute replacement. Performs one PUT and fresh read-back; never retried. Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/post_hp_damage"
+        },
+        "operationId": "selected_post_hp_heal"
+      }
+    },
+    "/v1/characters/{characterId}/hp/heal": {
+      "post": {
+        "summary": "Apply HP heal",
+        "description": "Fresh v5/SCDS pre-read. Optional expected vitals must match before dispatch. Damage absorbs temporary HP first; healing clamps at maximum. Temporary HP is an absolute replacement. Performs one PUT and fresh read-back; never retried. Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/post_hp_damage"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_post_hp_heal"
+      }
+    },
+    "/v1/character/hp/temporary": {
+      "post": {
+        "summary": "Apply HP temporary",
+        "description": "Fresh v5/SCDS pre-read. Optional expected vitals must match before dispatch. Damage absorbs temporary HP first; healing clamps at maximum. Temporary HP is an absolute replacement. Performs one PUT and fresh read-back; never retried. Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/post_hp_temporary"
+        },
+        "operationId": "selected_post_hp_temporary"
+      }
+    },
+    "/v1/characters/{characterId}/hp/temporary": {
+      "post": {
+        "summary": "Apply HP temporary",
+        "description": "Fresh v5/SCDS pre-read. Optional expected vitals must match before dispatch. Damage absorbs temporary HP first; healing clamps at maximum. Temporary HP is an absolute replacement. Performs one PUT and fresh read-back; never retried. Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/post_hp_temporary"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_post_hp_temporary"
+      }
+    },
+    "/v1/character/inventory": {
+      "get": {
+        "summary": "Read inventory and custom items",
+        "description": " Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success8"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "operationId": "selected_get_inventory"
+      },
+      "post": {
+        "summary": "Add catalog inventory item",
+        "description": "Quantity defaults to 1, container defaults to the character. Returns newly created mapping itemIds. Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/post_inventory"
+        },
+        "operationId": "selected_post_inventory"
+      }
+    },
+    "/v1/characters/{characterId}/inventory": {
+      "get": {
+        "summary": "Read inventory and custom items",
+        "description": " Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success8"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_get_inventory"
+      },
+      "post": {
+        "summary": "Add catalog inventory item",
+        "description": "Quantity defaults to 1, container defaults to the character. Returns newly created mapping itemIds. Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/post_inventory"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_post_inventory"
+      }
+    },
+    "/v1/character/inventory/{itemId}": {
+      "delete": {
+        "summary": "Remove inventory item",
+        "description": "itemId is the inventory mapping ID. removeContainerContents is false. Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/itemId"
+          }
+        ],
+        "operationId": "selected_delete_inventory_itemId"
+      }
+    },
+    "/v1/characters/{characterId}/inventory/{itemId}": {
+      "delete": {
+        "summary": "Remove inventory item",
+        "description": "itemId is the inventory mapping ID. removeContainerContents is false. Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          },
+          {
+            "$ref": "#/components/parameters/itemId"
+          }
+        ],
+        "operationId": "explicit_delete_inventory_itemId"
+      }
+    },
+    "/v1/character/inventory/{itemId}/quantity": {
+      "put": {
+        "summary": "Set inventory quantity",
+        "description": " Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_inventory_itemId_quantity"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/itemId"
+          }
+        ],
+        "operationId": "selected_put_inventory_itemId_quantity"
+      }
+    },
+    "/v1/characters/{characterId}/inventory/{itemId}/quantity": {
+      "put": {
+        "summary": "Set inventory quantity",
+        "description": " Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_inventory_itemId_quantity"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          },
+          {
+            "$ref": "#/components/parameters/itemId"
+          }
+        ],
+        "operationId": "explicit_put_inventory_itemId_quantity"
+      }
+    },
+    "/v1/character/inventory/{itemId}/equipped": {
+      "put": {
+        "summary": "Set inventory equipped",
+        "description": " Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_inventory_itemId_equipped"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/itemId"
+          }
+        ],
+        "operationId": "selected_put_inventory_itemId_equipped"
+      }
+    },
+    "/v1/characters/{characterId}/inventory/{itemId}/equipped": {
+      "put": {
+        "summary": "Set inventory equipped",
+        "description": " Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_inventory_itemId_equipped"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          },
+          {
+            "$ref": "#/components/parameters/itemId"
+          }
+        ],
+        "operationId": "explicit_put_inventory_itemId_equipped"
+      }
+    },
+    "/v1/character/inventory/{itemId}/attuned": {
+      "put": {
+        "summary": "Set inventory attuned",
+        "description": " Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_inventory_itemId_equipped"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/itemId"
+          }
+        ],
+        "operationId": "selected_put_inventory_itemId_attuned"
+      }
+    },
+    "/v1/characters/{characterId}/inventory/{itemId}/attuned": {
+      "put": {
+        "summary": "Set inventory attuned",
+        "description": " Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_inventory_itemId_equipped"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          },
+          {
+            "$ref": "#/components/parameters/itemId"
+          }
+        ],
+        "operationId": "explicit_put_inventory_itemId_attuned"
+      }
+    },
+    "/v1/character/inventory/{itemId}/container": {
+      "put": {
+        "summary": "Set inventory container",
+        "description": " Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_inventory_itemId_container"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/itemId"
+          }
+        ],
+        "operationId": "selected_put_inventory_itemId_container"
+      }
+    },
+    "/v1/characters/{characterId}/inventory/{itemId}/container": {
+      "put": {
+        "summary": "Set inventory container",
+        "description": " Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_inventory_itemId_container"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          },
+          {
+            "$ref": "#/components/parameters/itemId"
+          }
+        ],
+        "operationId": "explicit_put_inventory_itemId_container"
+      }
+    },
+    "/v1/character/spell-slots": {
+      "get": {
+        "summary": "Read ordinary and pact slots",
+        "description": " Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success9"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "operationId": "selected_get_spell_slots"
+      }
+    },
+    "/v1/characters/{characterId}/spell-slots": {
+      "get": {
+        "summary": "Read ordinary and pact slots",
+        "description": " Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success9"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_get_spell_slots"
+      }
+    },
+    "/v1/character/spell-slots/{level}": {
+      "put": {
+        "summary": "Set spell-slots used counter",
+        "description": "An existing level is required. This sets the used counter, not computed capacity. Meaningful warlock pact consumption has not been live-verified. Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_spell_slots_level"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/level"
+          }
+        ],
+        "operationId": "selected_put_spell_slots_level"
+      }
+    },
+    "/v1/characters/{characterId}/spell-slots/{level}": {
+      "put": {
+        "summary": "Set spell-slots used counter",
+        "description": "An existing level is required. This sets the used counter, not computed capacity. Meaningful warlock pact consumption has not been live-verified. Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_spell_slots_level"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          },
+          {
+            "$ref": "#/components/parameters/level"
+          }
+        ],
+        "operationId": "explicit_put_spell_slots_level"
+      }
+    },
+    "/v1/character/pact-slots/{level}": {
+      "put": {
+        "summary": "Set pact-slots used counter",
+        "description": "An existing level is required. This sets the used counter, not computed capacity. Meaningful warlock pact consumption has not been live-verified. Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_spell_slots_level"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/level"
+          }
+        ],
+        "operationId": "selected_put_pact_slots_level"
+      }
+    },
+    "/v1/characters/{characterId}/pact-slots/{level}": {
+      "put": {
+        "summary": "Set pact-slots used counter",
+        "description": "An existing level is required. This sets the used counter, not computed capacity. Meaningful warlock pact consumption has not been live-verified. Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_spell_slots_level"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          },
+          {
+            "$ref": "#/components/parameters/level"
+          }
+        ],
+        "operationId": "explicit_put_pact_slots_level"
+      }
+    },
+    "/v1/character/currency": {
+      "get": {
+        "summary": "Read coin balances",
+        "description": " Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success10"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "operationId": "selected_get_currency"
+      },
+      "put": {
+        "summary": "Set absolute coin balances",
+        "description": "Omitted coin balances are preserved; the service transaction uses computed deltas. Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_currency"
+        },
+        "operationId": "selected_put_currency"
+      }
+    },
+    "/v1/characters/{characterId}/currency": {
+      "get": {
+        "summary": "Read coin balances",
+        "description": " Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success10"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_get_currency"
+      },
+      "put": {
+        "summary": "Set absolute coin balances",
+        "description": "Omitted coin balances are preserved; the service transaction uses computed deltas. Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_currency"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_put_currency"
+      }
+    },
+    "/v1/character/inspiration": {
+      "get": {
+        "summary": "Read inspiration",
+        "description": " Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success11"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "operationId": "selected_get_inspiration"
+      },
+      "put": {
+        "summary": "Set inspiration",
+        "description": " Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_inspiration"
+        },
+        "operationId": "selected_put_inspiration"
+      }
+    },
+    "/v1/characters/{characterId}/inspiration": {
+      "get": {
+        "summary": "Read inspiration",
+        "description": " Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success11"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_get_inspiration"
+      },
+      "put": {
+        "summary": "Set inspiration",
+        "description": " Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_inspiration"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_put_inspiration"
+      }
+    },
+    "/v1/character/xp": {
+      "get": {
+        "summary": "Read xp",
+        "description": " Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success12"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "operationId": "selected_get_xp"
+      },
+      "put": {
+        "summary": "Set experience points",
+        "description": " Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_xp"
+        },
+        "operationId": "selected_put_xp"
+      }
+    },
+    "/v1/characters/{characterId}/xp": {
+      "get": {
+        "summary": "Read xp",
+        "description": " Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success12"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_get_xp"
+      },
+      "put": {
+        "summary": "Set experience points",
+        "description": " Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_xp"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_put_xp"
+      }
+    },
+    "/v1/character/death-saves": {
+      "get": {
+        "summary": "Read death-saves",
+        "description": " Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success13"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "operationId": "selected_get_death_saves"
+      },
+      "put": {
+        "summary": "Set death save counters",
+        "description": " Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_death_saves"
+        },
+        "operationId": "selected_put_death_saves"
+      }
+    },
+    "/v1/characters/{characterId}/death-saves": {
+      "get": {
+        "summary": "Read death-saves",
+        "description": " Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success13"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_get_death_saves"
+      },
+      "put": {
+        "summary": "Set death save counters",
+        "description": " Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_death_saves"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_put_death_saves"
+      }
+    },
+    "/v1/character/notes": {
+      "get": {
+        "summary": "Read notes",
+        "description": " Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success14"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "operationId": "selected_get_notes"
+      },
+      "put": {
+        "summary": "Update notes or backstory",
+        "description": "Omitted fields are preserved; null normalizes to empty text. Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_notes"
+        },
+        "operationId": "selected_put_notes"
+      }
+    },
+    "/v1/characters/{characterId}/notes": {
+      "get": {
+        "summary": "Read notes",
+        "description": " Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success14"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_get_notes"
+      },
+      "put": {
+        "summary": "Update notes or backstory",
+        "description": "Omitted fields are preserved; null normalizes to empty text. Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_notes"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_put_notes"
+      }
+    },
+    "/v1/character/conditions": {
+      "get": {
+        "summary": "Read conditions",
+        "description": " Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success15"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "operationId": "selected_get_conditions"
+      }
+    },
+    "/v1/characters/{characterId}/conditions": {
+      "get": {
+        "summary": "Read conditions",
+        "description": " Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success15"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_get_conditions"
+      }
+    },
+    "/v1/character/custom-items": {
+      "get": {
+        "summary": "Read custom-items",
+        "description": " Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success16"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "operationId": "selected_get_custom_items"
+      },
+      "post": {
+        "summary": "Create custom-items",
+        "description": "Omitted custom-item fields are preserved on update. Custom action properties beyond name follow the upstream bundle contract and are not all live-verified. Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/post_custom_items"
+        },
+        "operationId": "selected_post_custom_items"
+      }
+    },
+    "/v1/characters/{characterId}/custom-items": {
+      "get": {
+        "summary": "Read custom-items",
+        "description": " Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success16"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_get_custom_items"
+      },
+      "post": {
+        "summary": "Create custom-items",
+        "description": "Omitted custom-item fields are preserved on update. Custom action properties beyond name follow the upstream bundle contract and are not all live-verified. Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/post_custom_items"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_post_custom_items"
+      }
+    },
+    "/v1/character/custom-actions": {
+      "get": {
+        "summary": "Read custom-actions",
+        "description": " Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success17"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "operationId": "selected_get_custom_actions"
+      },
+      "post": {
+        "summary": "Create custom-actions",
+        "description": "Omitted custom-item fields are preserved on update. Custom action properties beyond name follow the upstream bundle contract and are not all live-verified. Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/post_custom_actions"
+        },
+        "operationId": "selected_post_custom_actions"
+      }
+    },
+    "/v1/characters/{characterId}/custom-actions": {
+      "get": {
+        "summary": "Read custom-actions",
+        "description": " Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success17"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_get_custom_actions"
+      },
+      "post": {
+        "summary": "Create custom-actions",
+        "description": "Omitted custom-item fields are preserved on update. Custom action properties beyond name follow the upstream bundle contract and are not all live-verified. Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/post_custom_actions"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_post_custom_actions"
+      }
+    },
+    "/v1/character/limited-use": {
+      "get": {
+        "summary": "Read limited-use",
+        "description": " Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success18"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "operationId": "selected_get_limited_use"
+      },
+      "put": {
+        "summary": "Set action limited-use counter",
+        "description": " Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_limited_use"
+        },
+        "operationId": "selected_put_limited_use"
+      }
+    },
+    "/v1/characters/{characterId}/limited-use": {
+      "get": {
+        "summary": "Read limited-use",
+        "description": " Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success18"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_get_limited_use"
+      },
+      "put": {
+        "summary": "Set action limited-use counter",
+        "description": " Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_limited_use"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_put_limited_use"
+      }
+    },
+    "/v1/character/prepared-spells": {
+      "get": {
+        "summary": "Read prepared-spells",
+        "description": " Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success19"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "operationId": "selected_get_prepared_spells"
+      },
+      "put": {
+        "summary": "Prepare or unprepare an existing class spell",
+        "description": " Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_prepared_spells"
+        },
+        "operationId": "selected_put_prepared_spells"
+      }
+    },
+    "/v1/characters/{characterId}/prepared-spells": {
+      "get": {
+        "summary": "Read prepared-spells",
+        "description": " Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success19"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_get_prepared_spells"
+      },
+      "put": {
+        "summary": "Prepare or unprepare an existing class spell",
+        "description": " Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_prepared_spells"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_put_prepared_spells"
+      }
+    },
+    "/v1/character/conditions/{conditionId}": {
+      "put": {
+        "summary": "Apply condition",
+        "description": "Condition ID 1\u201315. Applying exhaustion (ID 4) requires level 1\u20136. Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_conditions_conditionId"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/conditionId"
+          }
+        ],
+        "operationId": "selected_put_conditions_conditionId"
+      },
+      "delete": {
+        "summary": "Remove condition",
+        "description": "Condition ID 1\u201315. Applying exhaustion (ID 4) requires level 1\u20136. Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/conditionId"
+          }
+        ],
+        "operationId": "selected_delete_conditions_conditionId"
+      }
+    },
+    "/v1/characters/{characterId}/conditions/{conditionId}": {
+      "put": {
+        "summary": "Apply condition",
+        "description": "Condition ID 1\u201315. Applying exhaustion (ID 4) requires level 1\u20136. Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_conditions_conditionId"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          },
+          {
+            "$ref": "#/components/parameters/conditionId"
+          }
+        ],
+        "operationId": "explicit_put_conditions_conditionId"
+      },
+      "delete": {
+        "summary": "Remove condition",
+        "description": "Condition ID 1\u201315. Applying exhaustion (ID 4) requires level 1\u20136. Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          },
+          {
+            "$ref": "#/components/parameters/conditionId"
+          }
+        ],
+        "operationId": "explicit_delete_conditions_conditionId"
+      }
+    },
+    "/v1/character/custom-items/{id}": {
+      "put": {
+        "summary": "Update custom-items",
+        "description": "Omitted custom-item fields are preserved on update. Custom action properties beyond name follow the upstream bundle contract and are not all live-verified. Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_custom_items_id"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "operationId": "selected_put_custom_items_id"
+      },
+      "delete": {
+        "summary": "Remove custom-items",
+        "description": "Omitted custom-item fields are preserved on update. Custom action properties beyond name follow the upstream bundle contract and are not all live-verified. Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "operationId": "selected_delete_custom_items_id"
+      }
+    },
+    "/v1/characters/{characterId}/custom-items/{id}": {
+      "put": {
+        "summary": "Update custom-items",
+        "description": "Omitted custom-item fields are preserved on update. Custom action properties beyond name follow the upstream bundle contract and are not all live-verified. Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_custom_items_id"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "operationId": "explicit_put_custom_items_id"
+      },
+      "delete": {
+        "summary": "Remove custom-items",
+        "description": "Omitted custom-item fields are preserved on update. Custom action properties beyond name follow the upstream bundle contract and are not all live-verified. Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "operationId": "explicit_delete_custom_items_id"
+      }
+    },
+    "/v1/character/custom-actions/{id}": {
+      "put": {
+        "summary": "Update custom-actions",
+        "description": "Omitted custom-item fields are preserved on update. Custom action properties beyond name follow the upstream bundle contract and are not all live-verified. Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_custom_actions_id"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "operationId": "selected_put_custom_actions_id"
+      },
+      "delete": {
+        "summary": "Remove custom-actions",
+        "description": "Omitted custom-item fields are preserved on update. Custom action properties beyond name follow the upstream bundle contract and are not all live-verified. Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "operationId": "selected_delete_custom_actions_id"
+      }
+    },
+    "/v1/characters/{characterId}/custom-actions/{id}": {
+      "put": {
+        "summary": "Update custom-actions",
+        "description": "Omitted custom-item fields are preserved on update. Custom action properties beyond name follow the upstream bundle contract and are not all live-verified. Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/put_custom_actions_id"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "operationId": "explicit_put_custom_actions_id"
+      },
+      "delete": {
+        "summary": "Remove custom-actions",
+        "description": "Omitted custom-item fields are preserved on update. Custom action properties beyond name follow the upstream bundle contract and are not all live-verified. Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          },
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "operationId": "explicit_delete_custom_actions_id"
+      }
+    },
+    "/v1/character/rests/short": {
+      "post": {
+        "summary": "Apply short rest",
+        "description": "Omitted flags default false. Short rest preserves omitted hit-die counters and does not automatically heal hit dice. Long rest changes HP/resources. verifiedFields reports fields compared with fresh v5; not every D&D rest rule. Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/post_rests_short"
+        },
+        "operationId": "selected_post_rests_short"
+      }
+    },
+    "/v1/characters/{characterId}/rests/short": {
+      "post": {
+        "summary": "Apply short rest",
+        "description": "Omitted flags default false. Short rest preserves omitted hit-die counters and does not automatically heal hit dice. Long rest changes HP/resources. verifiedFields reports fields compared with fresh v5; not every D&D rest rule. Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/post_rests_short"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_post_rests_short"
+      }
+    },
+    "/v1/character/rests/long": {
+      "post": {
+        "summary": "Apply long rest",
+        "description": "Omitted flags default false. Short rest preserves omitted hit-die counters and does not automatically heal hit dice. Long rest changes HP/resources. verifiedFields reports fields compared with fresh v5; not every D&D rest rule. Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/post_rests_long"
+        },
+        "operationId": "selected_post_rests_long"
+      }
+    },
+    "/v1/characters/{characterId}/rests/long": {
+      "post": {
+        "summary": "Apply long rest",
+        "description": "Omitted flags default false. Short rest preserves omitted hit-die counters and does not automatically heal hit dice. Long rest changes HP/resources. verifiedFields reports fields compared with fresh v5; not every D&D rest rule. Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success7"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/post_rests_long"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_post_rests_long"
+      }
+    },
+    "/v1/character/rolls": {
+      "get": {
+        "summary": "Read computed roll catalog",
+        "description": "Fresh SCDS abilities, skills, attacks and initiative modifiers. Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success1"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "operationId": "selected_get_rolls"
+      },
+      "post": {
+        "summary": "Roll locally using fresh computed modifiers",
+        "description": "See the guide for accepted catalog IDs/names and explicit dice. Local rolls do not consume resources or post to the DDB game log. Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success1"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/post_rolls"
+        },
+        "operationId": "selected_post_rolls"
+      }
+    },
+    "/v1/characters/{characterId}/rolls": {
+      "get": {
+        "summary": "Read computed roll catalog",
+        "description": "Fresh SCDS abilities, skills, attacks and initiative modifiers. Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success1"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_get_rolls"
+      },
+      "post": {
+        "summary": "Roll locally using fresh computed modifiers",
+        "description": "See the guide for accepted catalog IDs/names and explicit dice. Local rolls do not consume resources or post to the DDB game log. Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success1"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/post_rolls"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_post_rolls"
+      }
+    },
+    "/v1/character/request": {
+      "post": {
+        "summary": "Send an authenticated character-service request",
+        "description": "Escape hatch for service operations without typed wrappers. Browser controls credentials, headers and redirects. Successful writes are acknowledged, not verified. Read current state after unknown outcomes. Other service hosts are refused. Resolves the remembered selection once per request and includes characterId in the result.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success1"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/post_request"
+        },
+        "operationId": "selected_post_request"
+      }
+    },
+    "/v1/characters/{characterId}/request": {
+      "post": {
+        "summary": "Send an authenticated character-service request",
+        "description": "Escape hatch for service operations without typed wrappers. Browser controls credentials, headers and redirects. Successful writes are acknowledged, not verified. Read current state after unknown outcomes. Other service hosts are refused. Explicit ID must still match the selected authorized character.",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success1"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "502": {
+            "$ref": "#/components/responses/Error502"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/post_request"
+        },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/characterId"
+          }
+        ],
+        "operationId": "explicit_post_request"
+      }
+    }
+  }
+}

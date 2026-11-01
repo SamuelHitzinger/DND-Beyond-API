@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "D&D Beyond Character API",
+  "version": "1.0.2",
+  "description": "Choose a D&D Beyond character for any local application. Desktop Chrome and Brave on Windows.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwTo0Rm4Z6/i6Js+KFit4bPCEFMrYDCACBu2TfxWUgiUtrb4lw4MQsJecGfajOQT9NpAEc8a5vuoQpwlN9h41BI7dWY67iLZmD5PTgPvAkU8z0etEnjyVQ+Kyesb3gnz7sgqJfXWlEpHavp0QQiTXASgZyzKimGUIObNQ74uIUx7Qk1DJ8SGNAkDKyHPmQf+ewN+gwS4MfLU8axESa2v0kxONeesfnbgeZvOnaGELwT8TrqLR3j/k/m7J83TAmmuOIoj+fNiShKMAc29N9rZ6sdiAA/TAfcgn02gsdAfxUAnnD3j97MiveH7ZAJG68osxJFtQ5JDqR3L2QUZ3/lYyoQIDAQAB",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "nativeMessaging",
+    "storage"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "ui/picker.html",
+    "default_title": "Choose your D&D Beyond character"
+  },
+  "options_page": "ui/setup.html",
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+  },
+  "host_permissions": [
+    "https://auth-service.dndbeyond.com/*",
+    "https://character-service.dndbeyond.com/*",
+    "https://character-service-scds.dndbeyond.com/*"
+  ]
+}
