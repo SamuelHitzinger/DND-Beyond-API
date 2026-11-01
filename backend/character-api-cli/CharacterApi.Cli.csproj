@@ -4,5 +4,6 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier><SelfContained>true</SelfContained><PublishSingleFile>true</PublishSingleFile>
     <RuntimeFrameworkVersion>10.0.14</RuntimeFrameworkVersion><TargetLatestRuntimePatch>false</TargetLatestRuntimePatch><RollForward>Disable</RollForward>
     <Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <DebugType>none</DebugType><DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
 </Project>
