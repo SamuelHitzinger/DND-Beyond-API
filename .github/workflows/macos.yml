@@ -58,7 +58,7 @@ jobs:
       - name: Package
         shell: pwsh
         run: ./tools/package-character-api.ps1 -Runtime ${{ matrix.rid }} -OutputDirectory dist/package -ZipPath dist/package.zip
-      - name: Installer test (real macOS: quarantine, codesign, host launch from the manifest)
+      - name: "Installer test (real macOS: quarantine, codesign, host launch from the manifest)"
         env:
           CHARACTER_API_REAL_MAC: '1'
         run: bash tests/macos_installer_test.sh dist/package.zip dist/character-api/${{ matrix.rid }}/CharacterBridge dist/character-api-cli/${{ matrix.rid }}/character-api
