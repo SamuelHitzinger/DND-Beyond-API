@@ -58,3 +58,17 @@ test('sign-in loss and empty account list have recovery without opt-in setup', a
     await expect(help.getByRole('button', { name: /Allow|Connect|Stop sharing|Pause API/i })).toHaveCount(0);
   } finally { await s.context.close(); }
 });
+
+test('without the Windows helper the picker still lists and selects characters', async ({}, info) => {
+  const s = await fixture(info, {});
+  try {
+    await expect.poll(() => s.worker.evaluate(() => nativePorts.length)).toBe(1);
+    await s.worker.evaluate(() => nativePorts.at(-1).disconnect()); // The helper never becomes ready.
+    const page = await s.context.newPage(); await page.goto(origin + 'ui/picker.html');
+    await expect(page.locator('#connection')).toContainText(/unavailable|Connecting/u);
+    await expect(page.getByLabel('Character', { exact: true })).toBeEnabled();
+    await page.getByLabel('Character', { exact: true }).selectOption('123');
+    await expect.poll(() => s.worker.evaluate(async () => (await chrome.storage.local.get('selectedCharacter')).selectedCharacter?.id ?? null)).toBe('123');
+    expect(await s.worker.evaluate(() => bridge.status().phase)).not.toBe('ready');
+  } finally { await s.context.close(); }
+});

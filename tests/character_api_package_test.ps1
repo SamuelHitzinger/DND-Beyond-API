@@ -93,7 +93,7 @@ function Get-BridgeRegistryAdapter {
   Write-Host 'PASS actual Windows PowerShell 5.1 -File install/uninstall entrypoints without explicit paths.'
   if ($InstallerOnly) { return }
   Assert ([bool]$PackageDirectory) 'PackageDirectory required for package validation'
-  foreach ($name in @('CharacterBridge.exe','character-api.exe','Install.cmd','Uninstall.cmd','README.md','docs/character-extension.md','docs/character-http-api.md','docs/character-http-api.openapi.json','protocol/extension-identity.json','licenses/runtime/dotnet-10.0.14/LICENSE.TXT','licenses/runtime/dotnet-10.0.14/THIRD-PARTY-NOTICES.TXT')) { Assert (Test-Path -LiteralPath (Join-Path $PackageDirectory $name)) ('required package file ' + $name) }
+  foreach ($name in @('CharacterBridge.exe','character-api.exe','Install.cmd','Uninstall.cmd','README.md','docs/character-extension.md','docs/character-http-api.md','docs/character-share.md','docs/character-http-api.openapi.json','protocol/extension-identity.json','licenses/runtime/dotnet-10.0.14/LICENSE.TXT','licenses/runtime/dotnet-10.0.14/THIRD-PARTY-NOTICES.TXT')) { Assert (Test-Path -LiteralPath (Join-Path $PackageDirectory $name)) ('required package file ' + $name) }
   foreach ($executable in @(@('CharacterBridge.exe',2),@('character-api.exe',3))) {
     $binary=New-Object IO.BinaryReader([IO.File]::OpenRead((Join-Path $PackageDirectory $executable[0])))
     try {
@@ -103,7 +103,7 @@ function Get-BridgeRegistryAdapter {
     } finally { $binary.Dispose() }
   }
   $extension = Join-Path $PackageDirectory 'extensions/dndbeyond'
-  $allowed = @('manifest.json','background.js','identity.js','local-api.js','http-read.js','account-characters.js','script-api.js','sheet-api.js','script-rolls.js','character-summary.js','ui/picker.html','ui/picker.js','ui/picker.css','ui/picker-client.js','ui/setup.html','ui/setup.js')
+  $allowed = @('manifest.json','background.js','identity.js','local-api.js','http-read.js','account-characters.js','web-share.js','share-sheet.js','share-relay.js','share-apply.js','script-api.js','sheet-api.js','script-rolls.js','character-summary.js','ui/picker.html','ui/picker.js','ui/picker.css','ui/picker-client.js','ui/setup.html','ui/setup.js','ui/share.html','ui/share.js','ui/shared-sites.js')
   $actual = @(Get-ChildItem -LiteralPath $extension -Recurse -File | ForEach-Object { $_.FullName.Substring($extension.Length+1).Replace('\','/') })
   Assert (@(Compare-Object $allowed $actual).Count -eq 0) 'extension contains exactly standalone runtime files'
   foreach ($file in Get-ChildItem -LiteralPath $extension -Recurse -File) {

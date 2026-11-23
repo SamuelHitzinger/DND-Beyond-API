@@ -3,7 +3,8 @@ import { cp, mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 export const origin = 'chrome-extension://abeakpcagojpphodembeeajfjgmcadnc/';
 export const origins = ['https://auth-service.dndbeyond.com/*', 'https://character-service.dndbeyond.com/*', 'https://character-service-scds.dndbeyond.com/*'];
-export async function fixture(info) {
+// boundary: extra worker-side mocks appended after the default ones (still before the extension loads).
+export async function fixture(info, { boundary = '' } = {}) {
   const root = fileURLToPath(new URL('../../', import.meta.url)), extension = info.outputPath('extension');
   await mkdir(extension, { recursive: true }); await cp(process.env.CHARACTER_API_EXTENSION_UNDER_TEST ?? root + '/extensions/dndbeyond', extension, { recursive: true });
   await cp(extension + '/background.js', extension + '/production-background.js');
@@ -25,7 +26,7 @@ export async function fixture(info) {
       }
       return json({success:true,data:{id:123,name:'Invented Hero'}});
     };
-  `);
+  ` + boundary);
   await writeFile(extension + '/background.js', "import './boundary.js';\nimport {bridge} from './production-background.js';\nglobalThis.bridge=bridge;\n");
   await mkdir(root + '/artifacts/profiles', { recursive: true }); const profile = await mkdtemp(root + '/artifacts/profiles/picker-');
   const context = await chromium.launchPersistentContext(profile, { channel: 'chromium', headless: true, serviceWorkers: 'allow', args: ['--disable-extensions-except=' + extension, '--load-extension=' + extension] });

@@ -15,7 +15,9 @@ per-application enrollment or approval for each edit is required.
 
 See the [installation guide](docs/character-extension.md),
 [API reference](docs/character-http-api.md), and
-[OpenAPI specification](docs/character-http-api.openapi.json). Runnable
+[OpenAPI specification](docs/character-http-api.openapi.json). A website you
+approve can learn which character is selected (name and details only); see
+[website sharing](docs/character-share.md). Runnable
 PowerShell and Python clients are in **examples/**. The live specification is
 also available at authenticated **GET /openapi.json**.
 

@@ -30,27 +30,36 @@ export function createHttpReader({ fetch = globalThis.fetch, monotonic = () => p
     await assertScope();
     if (!fresh && token && monotonic() < expires - 30000) return token;
     if (!refreshing) {
+      // One shared exchange per generation. It is not bound to the first caller's
+      // scope: every caller re-checks its own scope after it resolves, so one caller's
+      // ended scope never fails another caller's request.
       const scope = generation;
       refreshing = (async () => {
         const response = await json('https://auth-service.dndbeyond.com/v1/cobalt-token', {
           method: 'POST', credentials: 'include', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: '{}',
-        }, assertScope);
+        }, async () => {});
         if ([401, 403].includes(response.status)) throw Error('reauth_required');
         if (response.status === 429) throw Error('rate_limited');
         if (response.status !== 200) throw Error('network');
         const value = response.data;
         if (!Number.isInteger(value?.ttl) || value.ttl < 1 || value.ttl > 300 || typeof value.token !== 'string' ||
             value.token.length > 16384 || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u.test(value.token)) throw Error('schema');
-        await assertScope(); if (generation !== scope) throw Error('scope_ended');
+        if (generation !== scope) throw Error('scope_ended');
         token = value.token; expires = monotonic() + value.ttl * 1000; return token;
       })();
     }
     const pending = refreshing;
-    try { return await pending; } finally { if (refreshing === pending) refreshing = null; }
+    let value;
+    try { value = await pending; } finally { if (refreshing === pending) refreshing = null; }
+    await assertScope();
+    return value;
   }
-  async function requestCharacter(characterId, path, { method = 'GET', body = null, assertScope = async () => {} } = {}) {
+  // account (optional): the request is sent only with a token of this D&D Beyond
+  // account, checked on the token actually used (a refresh may switch accounts).
+  async function requestCharacter(characterId, path, { method = 'GET', body = null, assertScope = async () => {}, account = undefined } = {}) {
     if (!isHttpCharacterId(characterId)) throw Error('invalid_request');
     const url = characterUrl(path), bearer = await getToken(assertScope);
+    if (account !== undefined && accountIdFromToken(bearer) !== account) throw Error('account_mismatch');
     const response = await json(url, { method, credentials: 'omit',
       headers: { Accept: 'application/json', Authorization: `Bearer ${bearer}`, ...(body !== null ? { 'Content-Type': 'application/json' } : {}) },
       ...(body !== null && !['GET', 'HEAD'].includes(method) ? { body: JSON.stringify(body) } : {}),
@@ -68,5 +77,7 @@ export function createHttpReader({ fetch = globalThis.fetch, monotonic = () => p
     if (response.status !== 200) throw Error('network');
     await assertScope(); return { accountId, characters: accountCharacters(response.data) };
   }
-  return Object.freeze({ clear, requestCharacter, listCharacters });
+  // The game-log relay (web-share.js) authenticates its socket with a cobalt token.
+  const tokenFor = ({ assertScope = async () => {}, fresh = false } = {}) => getToken(assertScope, fresh);
+  return Object.freeze({ clear, requestCharacter, listCharacters, token: tokenFor });
 }

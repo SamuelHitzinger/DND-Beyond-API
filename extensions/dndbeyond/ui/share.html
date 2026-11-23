@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Share your character?</title><link rel="stylesheet" href="picker.css"></head>
+<body class="share"><main>
+  <header><p class="eyebrow">D&amp;D Beyond · Website sharing</p><h1 id="title">Share your character?</h1></header>
+  <section class="card" aria-label="Sharing request">
+    <p id="intro" class="muted">This website asks to use your selected character:</p>
+    <p id="origin" class="origin">Loading…</p>
+    <p class="muted">Character</p>
+    <p id="character" class="character">…</p>
+    <p id="current" class="muted" hidden></p>
+    <fieldset class="scopes">
+      <legend>What this site may do</legend>
+      <label class="scope"><input type="checkbox" checked disabled>
+        <span><strong>See who you are playing</strong><span class="muted">The selected character's name, level, species and classes, and when you choose a different character.</span></span></label>
+      <label class="scope"><input id="scope-sheet" type="checkbox" checked disabled>
+        <span><strong>Read the character sheet</strong> <span class="tag" data-new="sheet" hidden>New</span><span class="muted">Hit points, armor class, abilities, skills, attacks, spells, spell slots, conditions, death saves and the portrait. Read-only; checked again about every 20 seconds while the site is open.</span></span></label>
+      <label class="scope"><input id="scope-rolls" type="checkbox" checked disabled>
+        <span><strong>See your dice rolls</strong> <span class="tag" data-new="rolls" hidden>New</span><span class="muted">Rolls you make on D&amp;D Beyond with this character that everyone in the campaign or the DM can see. Rolls only you can see are never shared.</span></span></label>
+      <label class="scope write"><input id="scope-write" type="checkbox" checked disabled>
+        <span><strong>Change this character on D&amp;D Beyond</strong> <span class="tag" data-new="write" hidden>New</span><span class="muted">The site may change hit points, temporary hit points, conditions and death saves. These changes are saved to your real D&amp;D Beyond character sheet.</span></span></label>
+    </fieldset>
+    <p class="muted">Everything applies to whichever character you select, until you change it or choose Stop sharing in the extension. The site never sees your other characters, your account or your D&amp;D Beyond sign-in.</p>
+    <div class="actions"><button id="share" type="button" disabled>Share</button><button id="deny" class="secondary" type="button" disabled>Don't share</button></div>
+  </section>
+  <p id="error" role="alert"></p>
+</main><script type="module" src="share.js"></script></body></html>

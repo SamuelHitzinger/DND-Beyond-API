@@ -11,7 +11,13 @@
     <div class="actions"><button id="refresh" class="secondary" type="button">Refresh characters</button></div>
   </section>
   <p id="error" role="alert"></p>
+  <section id="sharing" class="card sharing" aria-label="Shared with websites" hidden>
+    <h2>Shared with websites</h2>
+    <p class="muted">These sites can see the selected character's name and details, plus what is ticked: Sheet (read-only character sheet), Rolls (your public and to-DM dice rolls) and Changes (hit points, conditions and death saves on D&amp;D Beyond).</p>
+    <ul id="shared-sites" class="sites"></ul>
+    <p id="sharing-error" class="sharing-error" role="alert"></p>
+  </section>
   <a id="setup" class="primary-link" href="setup.html" target="_blank" rel="noopener" hidden>Connection help</a>
   <footer><a href="https://www.dndbeyond.com/characters" target="_blank" rel="noopener">Open D&D Beyond</a>
 </footer>
-</main><script type="module" src="picker.js"></script></body></html>
+</main><script type="module" src="picker.js"></script><script type="module" src="shared-sites.js"></script></body></html>

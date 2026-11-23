@@ -4,15 +4,25 @@ import { HTTP_ORIGINS, isHttpCharacterId } from './http-read.js';
 import { createScriptApi } from './script-api.js';
 const fail = code => { throw Error(code); };
 const safeError = e => ['busy', 'permission_required', 'reauth_required', 'forbidden', 'scope_ended', 'timeout', 'schema', 'network', 'rate_limited', 'character_unavailable', 'ui_message'].includes(e?.message) ? e.message : 'request_failed';
-export function createLocalApi(api, { reader, timers = globalThis } = {}) {
-  let enabled = false, phase = 'disabled', error = null, native = null, epoch = 0, revision = 0;
+// accountReader lists the account's characters for the picker. It is not tied to the
+// Windows helper (whose losses clear `reader` and end native scopes), so a player
+// without the helper can still choose a character.
+export function createLocalApi(api, { reader, accountReader = reader, timers = globalThis } = {}) {
+  let enabled = false, phase = 'disabled', error = null, native = null, epoch = 0, revision = 0, accountEpoch = 0;
   let heartbeat = null, retry = null, lastInput = 0, initializing = null, selecting = false;
   let selectedCharacter = null, legacyChoice = null, accountId = null;
   let account = { phase: 'idle', error: null, characters: [] };
-  const ports = new Set();
+  const ports = new Set(), watchers = new Set();
   const selection = () => selectedCharacter ? { id: selectedCharacter.id, name: selectedCharacter.name } : null;
   const status = () => ({ enabled, phase, error, selectedCharacter: selection(), characters: selectedCharacter ? [selectedCharacter.id] : [], account: structuredClone(account) });
-  function publish() { for (const port of ports) { try { port.postMessage({ type: 'status', data: status() }); } catch { /* page closed */ } } }
+  function publish() {
+    for (const port of ports) { try { port.postMessage({ type: 'status', data: status() }); } catch { /* page closed */ } }
+    for (const watch of watchers) { try { watch(); } catch { /* subscriber failed */ } }
+  }
+  // Explicit projections for character-share; never status() or account data.
+  const sharedIdentity = () => selectedCharacter ? Object.freeze({ id: selectedCharacter.id, name: selectedCharacter.name.slice(0, 256), details: (selectedCharacter.details ?? '').slice(0, 256) }) : null;
+  const helperState = () => phase === 'ready' ? 'ready' : phase === 'connecting' ? 'connecting' : 'unavailable';
+  const watch = f => { watchers.add(f); return () => watchers.delete(f); };
   async function permission() { if (!await api.permissions.contains({ origins: [...HTTP_ORIGINS] })) fail('permission_required'); }
   const scripts = createScriptApi({ request: (id, path, options) => reader.requestCharacter(id, path, { ...options, assertScope: async () => { await permission(); await options.assertScope(); } }) });
   async function saveSelection(value) {
@@ -27,18 +37,18 @@ export function createLocalApi(api, { reader, timers = globalThis } = {}) {
   async function listCharacters() {
     await initialize();
     if (account.phase === 'loading') fail('busy');
-    const captured = epoch;
-    const assertScope = async () => { if (captured !== epoch) fail('scope_ended'); await permission(); };
+    const captured = accountEpoch;
+    const assertScope = async () => { if (captured !== accountEpoch) fail('scope_ended'); await permission(); };
     account = { phase: 'loading', error: null, characters: [] }; publish();
     try {
-      const result = await reader.listCharacters({ assertScope }); await assertScope();
+      const result = await accountReader.listCharacters({ assertScope }); await assertScope();
       if (selectedCharacter) {
         const chosen = result.characters.find(c => c.id === selectedCharacter.id);
         if (selectedCharacter.accountId !== result.accountId || !chosen) await saveSelection(null);
-        else if (chosen.name !== selectedCharacter.name) await saveSelection({ ...selectedCharacter, name: chosen.name });
+        else if (chosen.name !== selectedCharacter.name || chosen.details !== selectedCharacter.details) await saveSelection({ ...selectedCharacter, name: chosen.name, details: chosen.details });
       } else if (legacyChoice) {
         const chosen = result.characters.find(c => c.id === legacyChoice);
-        if (chosen) await saveSelection({ id: chosen.id, name: chosen.name, accountId: result.accountId });
+        if (chosen) await saveSelection({ id: chosen.id, name: chosen.name, details: chosen.details, accountId: result.accountId });
       }
       accountId = result.accountId; account = { phase: 'ready', error: null, characters: result.characters }; publish();
     } catch (e) { account = { phase: 'error', error: safeError(e), characters: [] }; publish(); throw e; }
@@ -101,7 +111,7 @@ export function createLocalApi(api, { reader, timers = globalThis } = {}) {
         await api.storage.local.setAccessLevel?.({ accessLevel: 'TRUSTED_CONTEXTS' });
         const saved = await api.storage.local.get(['selectedCharacter', 'scriptCharacters']);
         const selected = saved.selectedCharacter;
-        if (isHttpCharacterId(selected?.id) && typeof selected.name === 'string' && selected.name.length <= 256 && /^[1-9][0-9]{0,15}$/u.test(selected.accountId)) selectedCharacter = { id: selected.id, name: selected.name, accountId: selected.accountId };
+        if (isHttpCharacterId(selected?.id) && typeof selected.name === 'string' && selected.name.length <= 256 && /^[1-9][0-9]{0,15}$/u.test(selected.accountId)) selectedCharacter = { id: selected.id, name: selected.name, details: typeof selected.details === 'string' ? selected.details.slice(0, 1024) : '', accountId: selected.accountId };
         else if (saved.scriptCharacters?.length === 1 && isHttpCharacterId(saved.scriptCharacters[0])) legacyChoice = saved.scriptCharacters[0];
         await api.storage.local.remove('localApi');
         enabled = true; connect();
@@ -129,7 +139,7 @@ export function createLocalApi(api, { reader, timers = globalThis } = {}) {
           else if (m.type === 'select_character') {
             const selected = account.phase === 'ready' && account.characters.find(c => c.id === m.characterId);
             if (!selected || !accountId) fail('character_unavailable');
-            await saveSelection({ id: selected.id, name: selected.name, accountId });
+            await saveSelection({ id: selected.id, name: selected.name, details: selected.details, accountId });
           }
           if (ports.has(port)) port.postMessage({ requestId: m.requestId, ok: true, data: status() });
         } finally { if (mutating) work = false; }
@@ -137,7 +147,9 @@ export function createLocalApi(api, { reader, timers = globalThis } = {}) {
     });
     port.postMessage({ type: 'status', data: status() });
   }
-  api.permissions.onRemoved?.addListener(change => { if (change.origins?.length) { reader.clear(); account = { phase: 'error', error: 'permission_required', characters: [] }; publish(); } });
+  api.permissions.onRemoved?.addListener(change => { if (change.origins?.length) { accountEpoch++; reader.clear(); if (accountReader !== reader) accountReader.clear(); account = { phase: 'error', error: 'permission_required', characters: [] }; publish(); } });
   api.runtime.onStartup?.addListener(initialize); api.runtime.onInstalled?.addListener(initialize);
-  return Object.freeze({ initialize, status, acceptPort, disable });
+  // Worker-internal only (web-share checks the signed-in account); never sent to a page.
+  const selectedAccountId = () => selectedCharacter?.accountId ?? null;
+  return Object.freeze({ initialize, status, acceptPort, disable, sharedIdentity, selectedAccountId, helperState, watch });
 }

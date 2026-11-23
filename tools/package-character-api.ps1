@@ -18,11 +18,12 @@ $copies = [ordered]@{
   'docs/character-api-package.md'='README.md'
   'docs/character-extension.md'='docs/character-extension.md'
   'docs/character-http-api.md'='docs/character-http-api.md'
+  'docs/character-share.md'='docs/character-share.md'
   'docs/character-http-api.openapi.json'='docs/character-http-api.openapi.json'
   'protocol/extension-identity.json'='protocol/extension-identity.json'
 }
 foreach ($name in @('Install.cmd','Install.ps1','Uninstall.cmd','Uninstall.ps1','registration.ps1')) { $copies['tools/character-api-install/' + $name]=$name }
-foreach ($name in @('manifest.json','background.js','identity.js','local-api.js','http-read.js','account-characters.js','script-api.js','sheet-api.js','script-rolls.js','character-summary.js','ui/picker.html','ui/picker.js','ui/picker.css','ui/picker-client.js','ui/setup.html','ui/setup.js')) { $copies['extensions/dndbeyond/' + $name]='extensions/dndbeyond/' + $name }
+foreach ($name in @('manifest.json','background.js','identity.js','local-api.js','http-read.js','account-characters.js','web-share.js','share-sheet.js','share-relay.js','share-apply.js','script-api.js','sheet-api.js','script-rolls.js','character-summary.js','ui/picker.html','ui/picker.js','ui/picker.css','ui/picker-client.js','ui/setup.html','ui/setup.js','ui/share.html','ui/share.js','ui/shared-sites.js')) { $copies['extensions/dndbeyond/' + $name]='extensions/dndbeyond/' + $name }
 foreach ($name in @('LICENSE.TXT','THIRD-PARTY-NOTICES.TXT')) { $relative='licenses/runtime/dotnet-' + $apiLock.runtimeVersion + '/' + $name; $copies[$relative]=$relative }
 # Only public, checked-in script examples. Never recurse over arbitrary captures.
 foreach ($name in @('character-api.ps1','character_api.py')) { $copies['examples/character-api/' + $name]='examples/' + $name }

@@ -27,6 +27,7 @@ profile at a time. No per-application enrollment or per-edit approval is needed.
 - [Installation and connection help](docs/character-extension.md)
 - [HTTP API reference](docs/character-http-api.md)
 - [OpenAPI 3.1 specification](docs/character-http-api.openapi.json)
+- [Sharing your character with a website](docs/character-share.md)
 - [Python example](examples/character-api/character_api.py)
 - [PowerShell example](examples/character-api/character-api.ps1)
 
@@ -36,6 +37,14 @@ notes, custom items/actions, rests and local rolls. A restricted authenticated
 request route covers upstream character-service operations without typed wrappers.
 Unknown write outcomes are never automatically retried: read the current state
 before deciding on another action. The listener accepts IPv4 loopback only.
+
+Web pages get no HTTP access. A page on `https://*.ts.net`, `http://localhost` or
+`http://127.0.0.1` may ask, through the extension, to use the selected character.
+The user approves each exact site and chooses what it may do: always the
+character's ID, name and level/species/class line, and optionally a read-only
+sheet with portrait, dice rolls made on D&D Beyond (public and to-DM only), and
+HP/condition/death-save changes. Scopes can be switched off or sharing stopped in
+the popup. See [character-share v2](docs/character-share.md).
 
 ## Build and test
 

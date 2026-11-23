@@ -19,6 +19,9 @@ async function visit(url) {
   if (url.pathname.endsWith('.js')) for (const match of source.matchAll(/(?:import|export)\s[^;]*?from\s*['"]([^'"]+)['"]/g)) await visit(new URL(match[1], url));
   if (url.pathname.endsWith('.html')) for (const match of source.matchAll(/(?:src|href)="([^"]+\.(?:js|css|html))"/g)) await visit(new URL(match[1], url));
 }
-for (const path of [manifest.background.service_worker, manifest.action.default_popup, manifest.options_page]) await visit(new URL(path, root));
-if (manifest.content_scripts || manifest.optional_permissions || manifest.permissions.join(',') !== 'nativeMessaging,storage') throw Error('extension_legacy_permissions');
+// ui/share.html is opened by the worker (character-share approval), not by the manifest.
+for (const path of [manifest.background.service_worker, manifest.action.default_popup, manifest.options_page, 'ui/share.html']) await visit(new URL(path, root));
+if (manifest.content_scripts || manifest.optional_permissions || manifest.optional_host_permissions || manifest.permissions.join(',') !== 'nativeMessaging,storage') throw Error('extension_legacy_permissions');
+// Exactly the character-share web origins; reachability alone grants nothing.
+if (JSON.stringify(manifest.externally_connectable) !== JSON.stringify({ matches: ['https://*.ts.net/*', 'http://127.0.0.1/*', 'http://localhost/*'] })) throw Error('extension_externally_connectable');
 process.stdout.write(`PASS: extension identity and ${visited.size} runtime files verified.\n`);

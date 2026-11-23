@@ -42,6 +42,51 @@ The local bearer in `%LOCALAPPDATA%/TabletopVR/character-bridge/v2/http.json`
 allows apps on this PC to control the selected character. Keep that file/token
 private. It is separate from your D&D Beyond login.
 
+## Sharing your character with a website
+
+Some websites, such as a tabletop on your Tailscale network (`https://*.ts.net`)
+or a page served from this PC (`http://localhost`, `http://127.0.0.1`), can ask
+to use your selected character. Nothing is shared until you agree:
+
+1. The website asks, and the extension opens a small **Share your character?**
+   window showing the exact website address, your selected character and what the
+   site may do:
+   - **See who you are playing** (always): the character's ID, name and details
+     line (for example `Level 5 - Elf - Wizard 5`), including later changes of
+     your selection.
+   - **Read the character sheet**: hit points, armor class, abilities, skills,
+     attacks, spells, spell slots, conditions, death saves and the portrait.
+     Read-only.
+   - **See your dice rolls**: rolls you make on D&D Beyond with this character
+     that everyone in the campaign or the DM can see. Rolls only you can see are
+     never shared.
+   - **Change this character on D&D Beyond**: hit points, temporary hit points,
+     conditions and death saves. These changes are saved to your real character.
+
+   Untick anything you do not want to share, then choose **Share**. Choose
+   **Don't share** or close the window to refuse; the site must wait 15 seconds
+   before it can ask again, and can open at most three requests a minute.
+2. If a site you already share with asks for more, the window opens again as
+   **Share more with this site?**; **Keep current** changes nothing.
+3. Shared addresses are listed in the extension popup under **Shared with
+   websites**, with **Sheet**, **Rolls** and **Changes** switches for each site.
+   Switching one off takes effect immediately. **Stop sharing** ends access
+   immediately and disconnects the site. If the change cannot be saved, the site
+   stays stopped and is shown as **Stopped - not saved** with **Retry**; the
+   extension also retries on its own.
+
+Choosing a character in the popup and sharing it with websites both work without
+the Windows helper (the helper is only needed by local applications on this PC);
+the browser must be signed in to
+D&D Beyond with the account that owns the selected character. Dice rolls are only
+available for characters in a D&D Beyond campaign.
+
+A shared website never receives your D&D Beyond login, account, other characters
+or the local API bearer. Other websites cannot connect at all, and embedded
+frames are refused. Reloading or updating the extension briefly disconnects shared
+sites; they reconnect on their own. Developers: see
+[character-share](character-share.md).
+
 ## Connection help
 
 - **Windows helper unavailable:** run Install.cmd from the extracted permanent
