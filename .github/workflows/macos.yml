@@ -62,3 +62,10 @@ jobs:
         env:
           CHARACTER_API_REAL_MAC: '1'
         run: bash tests/macos_installer_test.sh dist/package.zip dist/character-api/${{ matrix.rid }}/CharacterBridge dist/character-api-cli/${{ matrix.rid }}/character-api
+      - name: Keep the tested package
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.rid }}
+          path: dist/package.zip
+          if-no-files-found: error
+          retention-days: 14
