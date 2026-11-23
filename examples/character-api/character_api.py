@@ -17,8 +17,18 @@ class LocalOnlyRedirects(HTTPRedirectHandler):
         return None
 
 
+def config_path():
+    if sys.platform == "darwin":
+        base = Path.home() / "Library/Application Support"
+    elif sys.platform == "win32":
+        base = Path(os.environ["LOCALAPPDATA"])
+    else:
+        base = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share")
+    return base / "TabletopVR/character-bridge/v2/http.json"
+
+
 def request(method, path, body=None):
-    config = Path(os.environ["LOCALAPPDATA"]) / "TabletopVR/character-bridge/v2/http.json"
+    config = config_path()
     api = json.loads(config.read_text(encoding="utf-8"))
     address = urlparse(api["url"])
     if address.scheme != "http" or address.hostname != "127.0.0.1" or address.username or address.password:

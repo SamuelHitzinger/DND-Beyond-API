@@ -4,11 +4,20 @@ Choose a D&D Beyond character in desktop Chrome or Brave, then read and control
 it from any local application through HTTP. The choice is remembered and access
 stays active automatically. D&D Beyond credentials stay inside the browser.
 
-[Download the Windows x64 package](https://github.com/SamuelHitzinger/DND-Beyond-API/releases/latest).
+[Download a package](https://github.com/SamuelHitzinger/DND-Beyond-API/releases/latest)
+for your computer (version 1.2.1):
+
+- `DDB-Character-API-1.2.1-Windows-x64.zip`
+- `DDB-Character-API-1.2.1-macOS-AppleSilicon.zip` (Apple silicon: M1, M2, M3, M4...)
+- `DDB-Character-API-1.2.1-macOS-Intel.zip`
+
 The helper and CLI are self-contained: no .NET, Node or game installation is
-required to use the package.
+required to use the package. The macOS packages are not yet tested on a real Mac;
+please report problems.
 
 ## Install
+
+Windows:
 
 1. Extract the release ZIP into a permanent folder.
 2. Run **Install.cmd** as your normal Windows user.
@@ -17,10 +26,26 @@ required to use the package.
 4. Sign in to D&D Beyond and choose a character in the extension.
 5. Run `character-api.exe GET /v1/character/summary` or connect your own software.
 
-There is one browser-owned API per Windows user. All local applications use the
+macOS (macOS 15 or newer for the helper):
+
+1. Extract the release ZIP for your chip into a permanent folder.
+2. Open Terminal, type `bash` and a space, drag **Install.command** into the
+   Terminal window and press Return. It works per user and needs no admin rights.
+   (Double-clicking may be blocked because the package is not notarized by Apple.)
+3. Load **extensions/dndbeyond** in `chrome://extensions` or
+   `brave://extensions` as in steps 3 and 4 above.
+4. Run `./character-api GET /v1/character/summary` from the package folder or
+   connect your own software.
+
+Choosing a character and sharing it with websites work without the helper on both
+systems; the helper is only needed for the local HTTP API. See
+[installation and connection help](docs/character-extension.md) for details.
+
+There is one browser-owned API per computer user. All local applications use the
 same URL and bearer from
-`%LOCALAPPDATA%/TabletopVR/character-bridge/v2/http.json`. Use one connected browser
-profile at a time. No per-application enrollment or per-edit approval is needed.
+`%LOCALAPPDATA%/TabletopVR/character-bridge/v2/http.json` on Windows or
+`~/Library/Application Support/TabletopVR/character-bridge/v2/http.json` on macOS.
+Use one connected browser profile at a time. No per-application enrollment or per-edit approval is needed.
 
 ## Documentation
 
@@ -48,7 +73,8 @@ the popup. See [character-share v2](docs/character-share.md).
 
 ## Build and test
 
-Development requires Windows x64 and Node24. Setup downloads the pinned .NET SDK
+Development requires Windows x64 and Node24; the macOS packages are also built
+there. Setup downloads the pinned .NET SDK
 from Microsoft and verifies its checksum. Runtime users do not need these tools.
 
 ```powershell
@@ -61,6 +87,10 @@ npx playwright install chromium
 npm run test:bridge -- --workers=2
 .\tools\package-character-api.ps1
 ```
+
+For macOS, build and package with `-Runtime osx-arm64` or `-Runtime osx-x64`:
+`tools/build-character-api.ps1 -Runtime osx-arm64` and
+`tools/package-character-api.ps1 -Runtime osx-arm64`.
 
 Generated binaries/packages stay under **dist/**. Tests use isolated native
 processes, HTTP fixtures and invented account responses. They never install a

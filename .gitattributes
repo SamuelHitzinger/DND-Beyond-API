@@ -4,3 +4,5 @@
 *.exe binary
 *.zip binary
 licenses/runtime/dotnet-10.0.14/*.TXT -text whitespace=cr-at-eol,-blank-at-eof
+*.sh text eol=lf
+*.command text eol=lf

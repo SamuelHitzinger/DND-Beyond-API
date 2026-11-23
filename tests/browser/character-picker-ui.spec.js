@@ -65,7 +65,7 @@ test('without the Windows helper the picker still lists and selects characters',
     await expect.poll(() => s.worker.evaluate(() => nativePorts.length)).toBe(1);
     await s.worker.evaluate(() => nativePorts.at(-1).disconnect()); // The helper never becomes ready.
     const page = await s.context.newPage(); await page.goto(origin + 'ui/picker.html');
-    await expect(page.locator('#connection')).toContainText(/unavailable|Connecting/u);
+    await expect(page.locator('#connection')).toContainText(/Helper app not running|Connecting/u);
     await expect(page.getByLabel('Character', { exact: true })).toBeEnabled();
     await page.getByLabel('Character', { exact: true }).selectOption('123');
     await expect.poll(() => s.worker.evaluate(async () => (await chrome.storage.local.get('selectedCharacter')).selectedCharacter?.id ?? null)).toBe('123');

@@ -9,6 +9,19 @@ using CharacterApi;
 static class Tests
 {
     static void Check(bool condition, string message) { if (!condition) throw new Exception("FAIL " + message); }
+    // Child processes get an isolated profile: LOCALAPPDATA on Windows, HOME (no XDG_DATA_HOME) on macOS/Linux.
+    static void Isolate(ProcessStartInfo launch, string profile)
+    {
+        if (OperatingSystem.IsWindows()) launch.Environment["LOCALAPPDATA"] = profile;
+        else { launch.Environment["HOME"] = profile; launch.Environment.Remove("XDG_DATA_HOME"); }
+    }
+    static string IsolatedDirectory(string profile) => Discovery.DirectoryFor(name => name is "LOCALAPPDATA" or "HOME" ? profile : null);
+    static void CheckPrivate(string directory, string file)
+    {
+        if (OperatingSystem.IsWindows()) return;
+        Check(File.GetUnixFileMode(directory) == (UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute), "config directory is owner-only (0700)");
+        Check(File.GetUnixFileMode(file) == (UnixFileMode.UserRead | UnixFileMode.UserWrite), "bearer file is owner-only (0600)");
+    }
     static async Task Main(string[] args)
     {
         string root = Path.Combine(Path.GetTempPath(), "character api tests " + Guid.NewGuid().ToString("N"));
@@ -47,6 +60,7 @@ static class Tests
         Check((await NativeFrames.ReadAsync(browser, deadline.Token))!["type"]!.GetValue<string>() == "ready", "ready after listener/config");
         var config = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(directory, "http.json")))!;
         Check(config["token"]!.GetValue<string>() == token, "preserves existing bearer");
+        CheckPrivate(directory, Path.Combine(directory, "http.json"));
         try { await new RelayHost(directory).RunAsync(new MemoryStream(), new MemoryStream(), deadline.Token); throw new Exception("accepted duplicate relay"); }
         catch (IOException) { }
         using var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { BaseAddress = new Uri(config["url"]!.GetValue<string>()), Timeout = TimeSpan.FromSeconds(15) };
@@ -136,15 +150,17 @@ static class Tests
         // LOCALAPPDATA is redirected only in this child process. Never access the
         // actual user profile/config or a running browser during verification.
         var launch = new ProcessStartInfo(executable!) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true };
-        launch.ArgumentList.Add("chrome-extension://abeakpcagojpphodembeeajfjgmcadnc/"); launch.ArgumentList.Add("--parent-window=0");
-        launch.Environment["LOCALAPPDATA"] = localAppData;
+        launch.ArgumentList.Add("chrome-extension://abeakpcagojpphodembeeajfjgmcadnc/");
+        if (OperatingSystem.IsWindows()) launch.ArgumentList.Add("--parent-window=0"); // Chrome on macOS passes the origin only
+        Isolate(launch, localAppData);
         launch.Environment["DOTNET_BUNDLE_EXTRACT_BASE_DIR"] = Path.Combine(root, "runtime extraction");
         using var native = Process.Start(launch)!;
         try {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             Check((await NativeFrames.ReadAsync(native.StandardOutput.BaseStream, timeout.Token))!["type"]!.GetValue<string>() == "ready", "actual WinExe inherited stdio ready frame");
-            string configPath = Path.Combine(localAppData, "TabletopVR", "character-bridge", "v2", "http.json");
-            Check(File.Exists(configPath), "published helper honors isolated LOCALAPPDATA");
+            string configPath = Path.Combine(IsolatedDirectory(localAppData), "http.json");
+            Check(File.Exists(configPath), "published helper honors the isolated profile");
+            CheckPrivate(Path.GetDirectoryName(configPath)!, configPath);
             var config = JsonNode.Parse(await File.ReadAllTextAsync(configPath))!;
             using var http = new HttpClient(); http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", config["token"]!.GetValue<string>());
             var openapi = await http.GetAsync(config["url"]!.GetValue<string>() + "/openapi.json");
@@ -165,7 +181,7 @@ static class Tests
         await using var browser = new NamedPipeClientStream(".", name, PipeDirection.InOut, PipeOptions.Asynchronous);
         Task connecting = server.WaitForConnectionAsync(); await browser.ConnectAsync(); await connecting;
         using var lifetime = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-        Task host = new RelayHost(Path.Combine(localAppData, "TabletopVR", "character-bridge", "v2")).RunAsync(server, server, lifetime.Token);
+        Task host = new RelayHost(IsolatedDirectory(localAppData)).RunAsync(server, server, lifetime.Token);
         string bodyFile = Path.Combine(root, "explicit change.json"); await File.WriteAllTextAsync(bodyFile, "{\"current\":7}");
         try {
             await NativeFrames.ReadAsync(browser, lifetime.Token);
@@ -176,7 +192,7 @@ static class Tests
             }) {
                 var launch = new ProcessStartInfo(executable!) { UseShellExecute=false, CreateNoWindow=true, RedirectStandardOutput=true, RedirectStandardError=true };
                 foreach (string argument in new[] { "POST", "/v1/character/hp", "--body-file", bodyFile }) launch.ArgumentList.Add(argument);
-                launch.Environment["LOCALAPPDATA"] = localAppData;
+                Isolate(launch, localAppData);
                 launch.Environment["DOTNET_BUNDLE_EXTRACT_BASE_DIR"] = Path.Combine(root, "cli runtime extraction");
                 using var process = Process.Start(launch)!;
                 var output = process.StandardOutput.ReadToEndAsync(); var error = process.StandardError.ReadToEndAsync();

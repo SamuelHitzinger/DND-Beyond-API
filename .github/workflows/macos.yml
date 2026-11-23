@@ -1,0 +1,64 @@
+# Builds the macOS helper packages on real Macs (Apple silicon and Intel) and runs the helper's test suite and the
+# installer test there, including quarantine, code signature and launching the registered host. Releases are still
+# built on Windows (tools/package-character-api.ps1); this checks that the same code works on macOS.
+name: macOS
+
+on:
+  workflow_dispatch:
+  push:
+    paths: ['backend/**', 'tools/**', 'tests/**', 'extensions/**', 'protocol/**', 'docs/**', 'examples/**', '.github/workflows/macos.yml', 'global.json']
+  pull_request:
+    paths: ['backend/**', 'tools/**', 'tests/**', 'extensions/**', 'protocol/**', 'docs/**', 'examples/**', '.github/workflows/macos.yml', 'global.json']
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15         # Apple silicon
+            rid: osx-arm64
+          - runner: macos-15-intel   # Intel
+            rid: osx-x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Machine
+        run: |
+          sw_vers; uname -m; sysctl -n hw.optional.arm64 2>/dev/null || true
+          spctl --status || true
+      - name: Publish helper, CLI and tests
+        run: |
+          set -euo pipefail
+          for project in character-api character-api-cli; do
+            dotnet publish "backend/$project" -c Release -r ${{ matrix.rid }} --self-contained true -p:PublishSingleFile=true -o "dist/$project/${{ matrix.rid }}"
+          done
+          dotnet publish backend/character-api.tests -c Release -r ${{ matrix.rid }} --self-contained true -o dist/tests
+          ls -la dist/character-api/${{ matrix.rid }} dist/character-api-cli/${{ matrix.rid }}
+          codesign --display --verbose=2 dist/character-api/${{ matrix.rid }}/CharacterBridge
+      - name: Helper tests (native relay, HTTP, owner-only config, published helper and CLI)
+        env:
+          TMPDIR: /tmp/    # macOS limits Unix socket paths (used by the tests' pipes) to 104 bytes
+          CHARACTER_API_TEST_EXECUTABLE: ${{ github.workspace }}/dist/character-api/${{ matrix.rid }}/CharacterBridge
+          CHARACTER_API_TEST_CLI: ${{ github.workspace }}/dist/character-api-cli/${{ matrix.rid }}/character-api
+        run: ./dist/tests/CharacterApi.Tests
+      - name: Package
+        shell: pwsh
+        run: ./tools/package-character-api.ps1 -Runtime ${{ matrix.rid }} -OutputDirectory dist/package -ZipPath dist/package.zip
+      - name: Installer test (real macOS: quarantine, codesign, host launch from the manifest)
+        env:
+          CHARACTER_API_REAL_MAC: '1'
+        run: bash tests/macos_installer_test.sh dist/package.zip dist/character-api/${{ matrix.rid }}/CharacterBridge dist/character-api-cli/${{ matrix.rid }}/character-api

@@ -61,9 +61,7 @@ internal sealed class LocalHttpApi(WebApplication application) : IAsyncDisposabl
         try {
             await app.StartAsync(token);
             string url = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
-            string temporary = file + ".tmp";
-            await File.WriteAllTextAsync(temporary, new JsonObject { ["url"] = url, ["token"] = bearer }.ToJsonString(), token);
-            File.Move(temporary, file, true);
+            await Discovery.WritePrivateFileAsync(file, new JsonObject { ["url"] = url, ["token"] = bearer }.ToJsonString(), token);
             return new(app);
         } catch { await app.DisposeAsync(); throw; }
     }

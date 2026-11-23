@@ -11,7 +11,9 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 try {
-  $config = Get-Content -LiteralPath (Join-Path $env:LOCALAPPDATA 'TabletopVR/character-bridge/v2/http.json') -Raw | ConvertFrom-Json
+  # $IsMacOS exists only in PowerShell 6+ (Windows PowerShell 5.1 under Set-StrictMode would fail on it).
+  $base = if ((Test-Path variable:IsMacOS) -and $IsMacOS) { Join-Path $HOME 'Library/Application Support' } else { $env:LOCALAPPDATA }
+  $config = Get-Content -LiteralPath (Join-Path $base 'TabletopVR/character-bridge/v2/http.json') -Raw | ConvertFrom-Json
   $address = [Uri]$config.url
   if ($address.Scheme -cne 'http' -or $address.Host -cne '127.0.0.1' -or $address.UserInfo) { throw 'Invalid local API address.' }
   if (-not $Path.StartsWith('/v1/') -and $Path -cne '/openapi.json') { throw 'Use /v1/... or /openapi.json.' }

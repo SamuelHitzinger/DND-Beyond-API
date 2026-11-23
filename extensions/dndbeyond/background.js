@@ -5,7 +5,7 @@ import { createWebShare } from './web-share.js';
 export function createBridge(api, { reader = createHttpReader(), accountReader = createHttpReader() } = {}) {
   const bridge = createLocalApi(api, { reader, accountReader });
   // Website sharing has its own ports and its own D&D Beyond reader: the picker's
-  // reader is cleared whenever the Windows helper is missing or reconnects, and
+  // reader is cleared whenever the helper app is missing or reconnects, and
   // shared sheets, rolls and writes must not depend on the helper.
   const share = createWebShare(api, bridge, { reader: createHttpReader() });
   api.runtime.onConnect.addListener(port => { try { if (share.ownsPort(port)) share.acceptPort(port); else bridge.acceptPort(port); } catch { port.disconnect(); } });

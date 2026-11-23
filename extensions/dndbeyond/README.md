@@ -1,7 +1,8 @@
 # D&D Beyond Character API extension
 
-The standalone Windows package contains the Chrome/Brave extension, a native
-HTTP helper, installer, documented API and examples. No game is required.
+The standalone Windows and macOS packages contain the Chrome/Brave extension, a
+native HTTP helper, installer, documented API and examples. No game is required.
+The extension works the same on both systems.
 
 - [Install and choose a character](../../docs/character-extension.md)
 - [HTTP API reference](../../docs/character-http-api.md)
@@ -23,7 +24,7 @@ sites with per-scope toggles and **Stop sharing**.
 
 `background.js` starts the worker; `local-api.js` owns the native connection and
 selection; `web-share.js` owns website ports, approvals, scopes and revocation,
-with its own D&D Beyond reader (independent of the Windows helper);
+with its own D&D Beyond reader (independent of the helper app);
 `share-sheet.js` builds the sheet projection, portrait and shared poll;
 `share-relay.js` relays game-log dice rolls; `share-apply.js` validates and
 deduplicates website writes;
@@ -37,5 +38,6 @@ scoped grants, recorder, developer validation pages or production npm dependenci
 Run `node tools/build-extension.js --check` to check identity and runtime files.
 Run `npm run test:bridge -- --workers=2` for the current isolated browser/API tests.
 Build/package with `tools/build-character-api.ps1` and
-`tools/package-character-api.ps1`. The standalone helper is independent of the
+`tools/package-character-api.ps1` (Windows x64 development machine; add
+`-Runtime osx-arm64` or `-Runtime osx-x64` for the macOS packages). The standalone helper is independent of the
 repository's game-side integration and older game export tools.

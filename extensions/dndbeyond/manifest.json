@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "D&D Beyond Character API",
-  "version": "1.2.0",
-  "description": "Choose a D&D Beyond character for any local application. Desktop Chrome and Brave on Windows.",
+  "version": "1.2.1",
+  "description": "Choose a D&D Beyond character for any local application. Desktop Chrome and Brave on Windows and macOS.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwTo0Rm4Z6/i6Js+KFit4bPCEFMrYDCACBu2TfxWUgiUtrb4lw4MQsJecGfajOQT9NpAEc8a5vuoQpwlN9h41BI7dWY67iLZmD5PTgPvAkU8z0etEnjyVQ+Kyesb3gnz7sgqJfXWlEpHavp0QQiTXASgZyzKimGUIObNQ74uIUx7Qk1DJ8SGNAkDKyHPmQf+ewN+gwS4MfLU8axESa2v0kxONeesfnbgeZvOnaGELwT8TrqLR3j/k/m7J83TAmmuOIoj+fNiShKMAc29N9rZ6sdiAA/TAfcgn02gsdAfxUAnnD3j97MiveH7ZAJG68osxJFtQ5JDqR3L2QUZ3/lYyoQIDAQAB",
   "minimum_chrome_version": "116",
   "permissions": [

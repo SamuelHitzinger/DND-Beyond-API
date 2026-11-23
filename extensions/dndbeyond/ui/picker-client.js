@@ -27,12 +27,13 @@ export function pickerClient(render, onClose) {
 }
 export function connectionText(s) {
   if (s.phase === 'ready') return 'Connected · available to local apps';
-  if (s.phase === 'connecting') return 'Connecting to Windows helper…';
-  if (s.phase === 'retry_wait') return 'Windows helper unavailable · retrying…';
-  return 'Windows helper unavailable · see connection help';
+  // The helper app (Windows or macOS) only serves the local HTTP API; choosing and sharing work without it.
+  if (s.phase === 'connecting') return 'Connecting to the helper app…';
+  if (s.phase === 'retry_wait') return 'Helper app not running · only local apps need it · retrying…';
+  return 'Helper app not running · only local apps need it · see connection help';
 }
 export function errorText(code) {
-  return ({ permission_required: 'D&D Beyond access is disabled in the browser�s extension settings.',
+  return ({ permission_required: 'D&D Beyond access is disabled in the browser’s extension settings.',
     reauth_required: 'Sign in to D&D Beyond in this browser, then refresh characters.',
     forbidden: 'D&D Beyond denied access. Check your sign-in, then refresh characters.',
     rate_limited: 'D&D Beyond is busy. Wait a minute, then refresh characters.',

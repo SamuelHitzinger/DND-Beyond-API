@@ -122,9 +122,9 @@ test('v2: scoped consent delivers sheet, portrait, rolls and a verified write wi
     const picker = await s.context.newPage(); await picker.goto(origin + 'ui/picker.html');
     await picker.getByLabel('Character', { exact: true }).selectOption('123');
     await expect.poll(() => s.worker.evaluate(async () => (await chrome.storage.local.get('selectedCharacter')).selectedCharacter?.id ?? null)).toBe('123');
-    // The Windows helper goes away (as on a machine without it); the picker's reader is cleared.
+    // The helper app goes away (as on a machine without it); the picker's reader is cleared.
     await s.worker.evaluate(() => nativePorts.at(-1).disconnect());
-    await expect(picker.locator('#connection')).toContainText('unavailable');
+    await expect(picker.locator('#connection')).toContainText('Helper app not running');
 
     const table = await s.context.newPage();
     await table.route(/^http:\/\/localhost:4173\//u, route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Table</title>' }));

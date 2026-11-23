@@ -13,7 +13,7 @@ public sealed class RelayHost(string directory)
     private long lastPing = Stopwatch.GetTimestamp();
     public async Task RunAsync(Stream input, Stream output, CancellationToken cancellationToken)
     {
-        Directory.CreateDirectory(directory);
+        Discovery.CreatePrivateDirectory(directory);
         using var exclusive = new FileStream(Path.Combine(directory, "broker.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
         using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         async Task Send(JsonObject message, CancellationToken token) {

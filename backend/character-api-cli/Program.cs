@@ -8,9 +8,9 @@ try {
     if (command.Length is not (2 or 4) || (command.Length == 4 && command[2] != "--body-file") ||
         !new[] { "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS" }.Contains(command[0]) ||
         !command[1].StartsWith('/') || command[1].StartsWith("//") || command[1].Contains('#') || command[1].Contains('\\')) {
-        Console.Error.WriteLine("Usage: character-api.exe METHOD /path [--body-file file]"); return 64;
+        Console.Error.WriteLine(OperatingSystem.IsWindows() ? "Usage: character-api.exe METHOD /path [--body-file file]" : "Usage: ./character-api METHOD /path [--body-file file]"); return 64;
     }
-    string directory = Path.Combine(Environment.GetEnvironmentVariable("LOCALAPPDATA") ?? Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TabletopVR", "character-bridge", "v2");
+    string directory = CharacterApi.Discovery.DefaultDirectory;
     var config = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(directory, "http.json")))!;
     var url = new Uri(config["url"]!.GetValue<string>());
     string bearer = config["token"]!.GetValue<string>();

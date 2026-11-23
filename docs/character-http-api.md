@@ -1,14 +1,16 @@
 # D&D Beyond Character API v1
 
-A documented localhost HTTP API for any application on this Windows PC. The
-extension owns D&D Beyond login and the remembered character choice. The Windows
-helper only relays requests between local apps and the browser. No game or SDK
+A documented localhost HTTP API for any application on this Windows PC or Mac. The
+extension owns D&D Beyond login and the remembered character choice. The helper
+app only relays requests between local apps and the browser. No game or SDK
 is required. See [installation](character-extension.md) and the complete
 [OpenAPI 3.1 specification](character-http-api.openapi.json).
 
 ## Connect from any language
 
-Read `%LOCALAPPDATA%/TabletopVR/character-bridge/v2/http.json` for `url` and `token`.
+Read `%LOCALAPPDATA%/TabletopVR/character-bridge/v2/http.json` (Windows) or
+`~/Library/Application Support/TabletopVR/character-bridge/v2/http.json` (macOS;
+folder 0700, file 0600) for `url` and `token`.
 Send `Authorization: Bearer <token>` on every request, including `/openapi.json`.
 The URL uses `http://127.0.0.1:<dynamic port>`; reload the file after the browser
 reconnects. The local bearer is not the D&D Beyond token. Keep it private.
@@ -22,7 +24,8 @@ $status = Invoke-RestMethod "$($api.url)/v1/status" -Headers $headers
 $sheet = Invoke-RestMethod "$($api.url)/v1/character" -Headers $headers
 ```
 
-The included CLI is `character-api.exe GET /v1/character/summary`. Exit0 means
+The included CLI is `character-api.exe GET /v1/character/summary` on Windows and
+`./character-api GET /v1/character/summary` on macOS (from the package folder). Exit0 means
 success; exit1 means an HTTP/error/rejected/conflict result, exit4 means an unknown
 outcome, and exit64 means usage error. The package
 also includes dependency-free Python and PowerShell examples in `examples/`.
@@ -163,7 +166,9 @@ been live-verified. Rolls are local and never post to the DDB game log.
 
 The independent source projects are `backend/character-api` and
 `backend/character-api-cli`. Use `tools/build-character-api.ps1`,
-`tools/check-character-api.ps1` and `tools/package-character-api.ps1`.
+`tools/check-character-api.ps1` and `tools/package-character-api.ps1`; development
+needs Windows x64, which also builds the macOS packages with
+`-Runtime osx-arm64` or `-Runtime osx-x64`.
 `tools/build-character-api.ps1 -ReloadExtension` stages the new helper, pauses
 the existing native connection, copies only after it exits and reconnects.
 `tools/reload-extension.ps1` sends the local development endpoint

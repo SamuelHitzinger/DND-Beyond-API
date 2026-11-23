@@ -15,7 +15,7 @@ function render(s) {
     el('characters').append(new Option(s.selectedCharacter.name, s.selectedCharacter.id));
   }
   el('characters').value = s.selectedCharacter?.id ?? '';
-  // Choosing a character uses the browser's own D&D Beyond session; the Windows helper is
+  // Choosing a character uses the browser's own D&D Beyond session; the helper app is
   // only needed by local applications, so its status is informational here.
   el('characters').disabled = busy || s.account.phase !== 'ready' || !characters.length;
   el('list-help').textContent = s.account.phase === 'ready' && !characters.length ? 'No active characters in this account. Create or unlock one on D&D Beyond, then refresh.' :
